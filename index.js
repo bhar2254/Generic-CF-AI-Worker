@@ -1,4 +1,3 @@
-import { Ai } from './vendor/@cloudflare/ai.js';
 
 class BSPage {
     constructor(title, options) {
@@ -75,7 +74,7 @@ class BSPage {
 }
 
 var navbar = `
-<nav class="navbar navbar-expand-lg bg-dark sticky-top shadow-lg">
+<nav class="navbar navbar-expand-lg bg-dark bg-gradient sticky-top shadow-lg">
 	<div class="container-fluid">
 		<button class="my-1 navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 		<div class="collapse navbar-collapse" id="navbarSupportedContent">
@@ -161,7 +160,7 @@ export default {
               <div class="container my-5">
                 <div class="row">
                   <div class="col-lg-8 col-xs-12 mx-auto">
-                    <div class="text-white rounded" style="background-color:hsl(238deg, 6%, 14%);">
+                    <div class="text-white bg-dark bg-gradient rounded">
                       <div class='container p-3'>
                         ${bodyContent}
                       </div>
@@ -212,25 +211,17 @@ export default {
         let bodyContent = ''
 
         switch(queryAction) {
-          case "image": {
-            let queryPrompt = getParameterByName("prompt") || 'cyberpunk cat';
-            bodyContent = `
-            <div class="container">
-              <div class="col-6 mx-auto">
-                <img id="aiImage" class="img-fluid loading" src="/image?prompt=${queryPrompt}">
-              </div>
-            </div>`
-            break;
-          }
           case "text": {
+            const sample_response = `I'd be delighted to share a joke with you! Here's one: Why did the computer go to the doctor? (wait for it...) Because it had a virus! Get it? A computer virus! Ah, I hope that brought a smile to your face! Would you like to hear another one? I have plenty of "byte-sized" humor to go around!`
             let queryPrompt = getParameterByName("prompt") || 'Tell me a joke, please?';
-            const ai = new Ai(env.AI);
-            const response = await ai.run(
-              "@cf/meta/llama-2-7b-chat-int8",
-              {
-                prompt: queryPrompt
-              }
-            );
+            const tasks = [];
+
+            // prompt - simple completion style input
+            let simple = {
+              prompt: queryPrompt
+            };
+            let response = await env.AI.run('@cf/meta/llama-3-8b-instruct', simple);
+            tasks.push({ inputs: simple, response });
             bodyContent = response.response
             break;
           }
@@ -240,46 +231,27 @@ export default {
         }
 
         let currentPage = new BSPage('Index',{content:`
-          <div class="d-flex flex-column min-vh-98 justify-content-center align-items-center">
-            ${bodyContent}
-            <div class="btn btn-group">
-              <button id="back" class="my-3 py-2 btn btn-secondary" onclick="location.href='/'">Back</button>
-            </div>
-          </div>
+        ${navbar}
+        <body style="background-color: var(--bh-primary);"> 
+          <div class="d-flex flex-column justify-content-center align-items-center" style="min-height: 90vh;">
+            <div class="container my-5">
+              <div class="row">
+                <div class="col-lg-8 col-xs-12 mx-auto">
+                  <div class="text-white bg-dark bg-gradient rounded">
+                    <div class='container p-3'>
+                      ${bodyContent}
+                      <div class="text-center">
+                        <div class="btn btn-group">
+                          <button id="back" class="my-3 py-2 btn btn-secondary" onclick="location.href='/'">Back</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
         `})
 
         return rawHtmlResponse(currentPage.printPage())
-      }
-      case "/image": {        
-        let queryPrompt = getParameterByName("prompt") || 'cyberpunk cat';
-        const ai = new Ai(env.AI);
-    
-        const inputs = {
-          prompt: queryPrompt
-        };
-
-        const response = await ai.run(
-          '@cf/stabilityai/stable-diffusion-xl-base-1.0',
-          inputs
-        );
-
-        return new Response(response, {
-          headers: {
-            'content-type': 'image/png'
-          }
-        });
-      }
-      case "/text": {        
-        let queryPrompt = getParameterByName("prompt") || 'Tell me something funny?';
-        const ai = new Ai(env.AI);
-        const response = await ai.run(
-          "@cf/meta/llama-2-7b-chat-int8",
-          {
-            prompt: queryPrompt
-          }
-        );
-
-        return new Response(JSON.stringify(response));
       }
       default: {
         return new Response(JSON.stringify({"status": 404}));
